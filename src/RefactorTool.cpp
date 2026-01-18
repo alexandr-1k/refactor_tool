@@ -103,30 +103,26 @@ void RefactorHandler::handle_nv_dtor(const CXXDestructorDecl *Dtor, DiagnosticsE
 
     Rewrite.InsertText(Dtor->getInnerLocStart(), "virtual ", true, true);
 }
+
 void RefactorHandler::handle_miss_override(const CXXMethodDecl *Method, DiagnosticsEngine &Diag, SourceManager &SM) {
     if (!SM.isInMainFile(Method->getLocation()))
         return;
 
-    SourceLocation RParenLoc;
-    if (auto *TSI = Method->getTypeSourceInfo()) {
+    SourceLocation InsertLoc;
+    if (const auto *TSI = Method->getTypeSourceInfo()) {
         if (auto FTL = TSI->getTypeLoc().getAs<FunctionTypeLoc>()) {
-            RParenLoc = FTL.getRParenLoc();
+            InsertLoc = FTL.getLocalRangeEnd();
         }
     }
 
-    if (RParenLoc.isInvalid()) {
-        RParenLoc = Lexer::findLocationAfterToken(Method->getLocation(), tok::r_paren, SM,
-                                                  Method->getASTContext().getLangOpts(), false);
-    }
-
-    if (RParenLoc.isValid()) {
+    if (InsertLoc.isValid()) {
         const unsigned DiagID = Diag.getCustomDiagID(DiagnosticsEngine::Warning,
                                                      "Method overrides base but lacks 'override'; adding specifier");
         Diag.Report(Method->getLocation(), DiagID);
 
-        SourceLocation AfterRParen =
-            Lexer::getLocForEndOfToken(RParenLoc, 0, SM, Method->getASTContext().getLangOpts());
-        Rewrite.InsertText(AfterRParen, " override", true, true);
+        InsertLoc = Lexer::getLocForEndOfToken(InsertLoc, 0, SM, Method->getASTContext().getLangOpts());
+
+        Rewrite.InsertText(InsertLoc, " override", true, true);
     }
 }
 
@@ -177,5 +173,6 @@ int main(int argc, const char **argv) {
 
     ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
 
-    return Tool.run(newFrontendActionFactory<CodeRefactorAction>().get());
+    auto fr_act_factory = newFrontendActionFactory<CodeRefactorAction>();
+    return Tool.run(fr_act_factory.get());
 }
