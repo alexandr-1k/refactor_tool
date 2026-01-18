@@ -36,6 +36,15 @@ target_include_directories(
 
 target_link_libraries(refactor_tool PRIVATE clangTooling clangBasic clangASTMatchers)
 
+set(SANITIZE_CONDITION "$<CONFIG:Debug>")
+set(SANITIZE_FLAGS
+    "$<${SANITIZE_CONDITION}:-fsanitize=undefined,address,leak>"
+    "$<${SANITIZE_CONDITION}:-fno-omit-frame-pointer>"
+    "$<${SANITIZE_CONDITION}:-g>"
+  )
+
+target_compile_options(refactor_tool PRIVATE ${SANITIZE_FLAGS})
+target_link_options(refactor_tool PRIVATE ${SANITIZE_FLAGS})
 
 # # CONFIGURE THE PLUGIN LIBRARIES
 # # ==============================
